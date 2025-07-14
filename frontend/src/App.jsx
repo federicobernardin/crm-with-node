@@ -41,10 +41,10 @@ export default function App() {
 
       <Drawer
         title={editingClient ? 'Modifica Cliente' : 'Nuovo Cliente'}
-        width={360}
+        width={720}
         onClose={closeDrawer}
         open={drawerVisible}
-        bodyStyle={{ paddingBottom: 80 }}
+        style={{ body: {paddingBottom: 80 }}}
       >
         <ClientForm editing={editingClient} onSaved={handleSaved} onCancel={closeDrawer} />
       </Drawer>

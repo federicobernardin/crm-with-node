@@ -1,55 +1,84 @@
-const express = require("express");
+// backend/src/routes/clients.js
+const express = require('express');
+const { Client, Contact, sequelize } = require('../models');
 const router = express.Router();
-const { Client } = require("../models");
 
-// GET all clients
-router.get("/", async (req, res) => {
+// GET /api/clients
+router.get('/', async (req, res, next) => {
   try {
-    const clients = await Client.findAll();
+    const clients = await Client.findAll({ include: 'contacts' });
     res.json(clients);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Errore interno del server." });
+    next(err);
   }
 });
 
-// POST create new client
-router.post("/", async (req, res) => {
+// POST /api/clients
+router.post('/', async (req, res, next) => {
+  const { contacts = [], ...clientData } = req.body;
+  const t = await sequelize.transaction();
   try {
-    const newClient = await Client.create(req.body);
+    // 1) creo il client
+    const client = await Client.create(clientData, { transaction: t });
+
+    // 2) creo i singoli contatti, impostando client_id (non clientId!)
+    await Promise.all(contacts.map(c =>
+      Contact.create({
+        ...c,
+        client_id: client.id     // <—— qui
+      }, { transaction: t })
+    ));
+
+    await t.commit();
+
+    // 3) ricarico il client con i contatti
+    const newClient = await Client.findByPk(client.id, { include: 'contacts' });
     res.status(201).json(newClient);
   } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: err.message });
+    await t.rollback();
+    next(err);
   }
 });
 
-// PUT update client by id
-router.put("/:id", async (req, res) => {
+// PUT /api/clients/:id
+router.put('/:id', async (req, res, next) => {
+  const { contacts = [], ...clientData } = req.body;
+  const t = await sequelize.transaction();
   try {
-    const [updated] = await Client.update(req.body, {
-      where: { id: req.params.id }
+    // aggiorno i dati base
+    await Client.update(clientData, {
+      where: { id: req.params.id },
+      transaction: t
     });
-    if (!updated) return res.status(404).json({ message: "Cliente non trovato." });
-    const updatedClient = await Client.findByPk(req.params.id);
-    res.json(updatedClient);
+
+    // distruggo e ricreo tutti i contatti
+    await Contact.destroy({
+      where: { client_id: req.params.id },
+      transaction: t
+    });
+    await Promise.all(contacts.map(c =>
+      Contact.create({
+        ...c,
+        client_id: req.params.id    // <—— e qui
+      }, { transaction: t })
+    ));
+
+    await t.commit();
+    const updated = await Client.findByPk(req.params.id, { include: 'contacts' });
+    res.json(updated);
   } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: err.message });
+    await t.rollback();
+    next(err);
   }
 });
 
-// DELETE client by id
-router.delete("/:id", async (req, res) => {
+// DELETE /api/clients/:id
+router.delete('/:id', async (req, res, next) => {
   try {
-    const deleted = await Client.destroy({
-      where: { id: req.params.id }
-    });
-    if (!deleted) return res.status(404).json({ message: "Cliente non trovato." });
-    res.json({ message: "Cliente cancellato con successo." });
+    await Client.destroy({ where: { id: req.params.id } });
+    res.sendStatus(204);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Errore interno del server." });
+    next(err);
   }
 });
 

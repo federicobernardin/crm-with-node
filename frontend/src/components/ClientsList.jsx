@@ -15,7 +15,6 @@ export default function ClientsList({ onEdit }) {
 
   const columns = [
     { title: 'Azienda', dataIndex: 'company', key: 'company' },
-    { title: 'Referente', dataIndex: 'contact', key: 'contact' },
     { title: 'Indirizzo', dataIndex: 'address', key: 'address' },
     { title: 'Città', dataIndex: 'city', key: 'city' },
     { title: 'Provincia', dataIndex: 'state', key: 'state' },

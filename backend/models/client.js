@@ -1,7 +1,8 @@
+// backend/models/client.js
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
-  const Client = sequelize.define("Client", {
+  return sequelize.define("Client", {
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
@@ -11,11 +12,11 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(255),
       allowNull: false
     },
-    contact: DataTypes.STRING(255),
+    // campo `contact` rimosso
     address: DataTypes.STRING(255),
-    city: DataTypes.STRING(100),
-    state: DataTypes.STRING(50),
-    zip: DataTypes.STRING(10),
+    city:    DataTypes.STRING(100),
+    state:   DataTypes.STRING(50),
+    zip:     DataTypes.STRING(10),
     vat: {
       type: DataTypes.STRING(20),
       unique: true
@@ -31,11 +32,9 @@ module.exports = (sequelize) => {
     },
     payment_term: DataTypes.STRING(50)
   }, {
-    tableName: "clients",
+    tableName:  "clients",
     timestamps: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at"
+    createdAt:  "created_at",
+    updatedAt:  "updated_at"
   });
-
-  return Client;
 };

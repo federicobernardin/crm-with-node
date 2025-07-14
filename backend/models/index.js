@@ -14,8 +14,21 @@ const sequelize = new Sequelize(
 
 // importa i model
 const Client = require("./client")(sequelize);
+const Contact = require("./contact")(sequelize);
+
+// definisci le associazioni
+Client.hasMany(Contact, {
+  foreignKey: "client_id",
+  as: "contacts",
+  onDelete: "CASCADE"
+});
+Contact.belongsTo(Client, {
+  foreignKey: "client_id",
+  as: "client"
+});
 
 module.exports = {
   sequelize,
-  Client
+  Client,
+  Contact
 };
