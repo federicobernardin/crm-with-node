@@ -1,0 +1,19 @@
+{
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "previewLimit": 50,
+            "server": "127.0.0.1",
+            "port": 59002,
+            "driver": "MariaDB",
+            "name": "nodejs",
+            "database": "db",
+            "username": "db",
+            "password": "db"
+        }
+    ],
+    "intelephense.environment.phpVersion": "8.3"
+}
