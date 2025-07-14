@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const { sequelize } = require("./models");
 const clientsRouter = require("./routes/client");
+const proposalsRouter = require("./routes/proposal");
 
 const app = express();
 const PORT = 3001;
@@ -23,6 +24,7 @@ sequelize.sync()
 
 // Monta le rotte
 app.use("/api/clients", clientsRouter);
+app.use("/api/proposals", proposalsRouter);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server in ascolto su http://localhost:${PORT}`);
