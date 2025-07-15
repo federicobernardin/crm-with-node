@@ -19,7 +19,11 @@ module.exports = (sequelize) => {
     payment:       DataTypes.STRING(100),
     start_at:      DataTypes.DATEONLY,
     stop_at:       DataTypes.DATEONLY,
-    estimation_end: DataTypes.DATEONLY
+    estimation_end: DataTypes.DATEONLY,
+    document_path: { 
+      type: DataTypes.STRING(255),
+      allowNull: true 
+    }
   }, {
     tableName:   'proposals',
     timestamps:  true,

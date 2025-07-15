@@ -1,36 +1,120 @@
-// frontend/src/components/ProposalsList.jsx
-import { useEffect, useState } from 'react';
-import { Table, Button, Popconfirm } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Table, Button, Popconfirm, Space, Upload, message } from 'antd';
+import {
+  DownloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  UploadOutlined,
+  FileWordOutlined
+} from '@ant-design/icons';
 import { getProposals, deleteProposal } from '../api/proposals';
 
 export default function ProposalsList({ onEdit }) {
   const [data, setData] = useState([]);
-  useEffect(() => { load(); }, []);
-  const load = async () => setData(await getProposals());
+  const [loading, setLoading] = useState(false);
 
-  const cols = [
+  const fetchProposals = async () => {
+    setLoading(true);
+    try {
+      const list = await getProposals();
+      setData(list || []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProposals();
+  }, []);
+
+  const handleDelete = async (id) => {
+    setLoading(true);
+    try {
+      await deleteProposal(id);
+      fetchProposals();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const uploadProps = (id) => ({
+    name: 'file',
+    action: `/api/proposals/${id}/upload`,
+    accept: '.docx',
+    showUploadList: false,
+    onChange(info) {
+      if (info.file.status === 'done') {
+        const returned = info.file.response; // { success: true, path: 'uploads/…' }
+        message.success(`File caricato per proposta ${id}`);
+        // aggiorno localmente lo stato per questo record
+        setData(curr =>
+          curr.map(r =>
+            r.id === id ? { ...r, document_path: returned.path } : r
+          )
+        );
+      } else if (info.file.status === 'error') {
+        message.error(`Errore caricamento file per proposta ${id}`);
+      }
+    }
+  });
+
+  const columns = [
     { title: 'Codice', dataIndex: 'code', key: 'code' },
-    { title: 'Cliente', dataIndex: ['client','company'], key: 'company' },
     { title: 'Titolo', dataIndex: 'title', key: 'title' },
-    { title: 'Data', dataIndex: 'date', key: 'date' },
-    { title: 'Versione', dataIndex: 'version', key: 'version' },
     {
-      title: 'Azioni', key: 'actions',
-      render: (_, r) => (
-        <>
-          <Button type="link" onClick={() => onEdit(r)}>Modifica</Button>
-          <Popconfirm title="Confermi?" onConfirm={async () => { await deleteProposal(r.id); load(); }}>
-            <Button type="link" danger>Elimina</Button>
-          </Popconfirm>
-        </>
-      )
+      title: 'Azioni',
+      key: 'actions',
+      render: (_, record) => {
+        const hasFile = !!record.document_path;
+        return (
+          <Space>
+            <Button
+              type="link"
+              icon={<DownloadOutlined />}
+              href={`/api/proposals/${record.id}/download?force=true`}
+              target="_blank"
+            >
+              Gen
+            </Button>
+            <Upload {...uploadProps(record.id)}>
+              <Button type="link" icon={<UploadOutlined />}>Carica</Button>
+            </Upload>
+            <Button
+              type="link"
+              icon={<FileWordOutlined />}
+              href={`/api/proposals/${record.id}/file`}
+              target="_blank"
+              disabled={!hasFile}
+            >
+              File
+            </Button>
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => onEdit(record)}
+            >
+              Mod
+            </Button>
+            <Popconfirm
+              title="Confermi eliminazione?"
+              onConfirm={() => handleDelete(record.id)}
+            >
+              <Button type="link" icon={<DeleteOutlined />} danger>
+                Del
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      }
     }
   ];
 
   return (
     <Table
-      dataSource={data.map(d => ({ ...d, key: d.id }))}
-      columns={cols}
+      rowKey="id"
+      loading={loading}
+      dataSource={data}
+      columns={columns}
       pagination={{ pageSize: 10 }}
     />
   );

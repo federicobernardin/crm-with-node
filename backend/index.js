@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require('path');
 const cors = require("cors");
 const { sequelize } = require("./models");
 const clientsRouter = require("./routes/client");
@@ -25,6 +26,8 @@ sequelize.sync()
 // Monta le rotte
 app.use("/api/clients", clientsRouter);
 app.use("/api/proposals", proposalsRouter);
+// rendi disponibile la cartella `uploads` via HTTP
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.listen(PORT, () => {
   console.log(`🚀 Server in ascolto su http://localhost:${PORT}`);

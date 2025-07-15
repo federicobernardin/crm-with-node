@@ -1,9 +1,10 @@
 // frontend/src/components/ProposalForm.jsx
 import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
-import { Form, Input, Button, Card, Select, DatePicker, InputNumber, Checkbox } from 'antd';
+import { Form, Input, Button, Card, Select, DatePicker, InputNumber, Checkbox, Upload, message } from 'antd';
 import { createProposal, updateProposal } from '../api/proposals';
 import { getClients } from '../api/clients';
+import { UploadOutlined } from '@ant-design/icons';
 
 export default function ProposalForm({ editing, onSaved, onCancel }) {
   const [form] = Form.useForm();
@@ -97,6 +98,25 @@ export default function ProposalForm({ editing, onSaved, onCancel }) {
         <Form.Item name="start_at" label="Inizio"><DatePicker style={{width:'100%'}} /></Form.Item>
         <Form.Item name="stop_at" label="Fine"><DatePicker style={{width:'100%'}} /></Form.Item>
         <Form.Item name="estimation_end" label="Stima Fine"><DatePicker style={{width:'100%'}} /></Form.Item>
+        {editing && (
+          <Form.Item label="Carica Documento Word">
+            <Upload
+              name="file"
+              accept=".docx"
+              action={`/api/proposals/${editing.id}/upload`}
+              showUploadList={false}
+              onChange={({ file }) => {
+                if (file.status === 'done') {
+                  message.success('File caricato con successo');
+                } else if (file.status === 'error') {
+                  message.error('Errore durante il caricamento');
+                }
+              }}
+            >
+              <Button icon={<UploadOutlined />}>Carica file</Button>
+            </Upload>
+          </Form.Item>
+        )}
         <Form.Item>
           <Button type="primary" htmlType="submit" style={{marginRight:8}}>Salva</Button>
           <Button onClick={onCancel}>Annulla</Button>

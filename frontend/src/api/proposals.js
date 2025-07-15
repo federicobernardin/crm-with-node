@@ -26,3 +26,13 @@ export async function updateProposal(id, data) {
 export async function deleteProposal(id) {
   await fetch(`${BASE}/${id}`, { method: 'DELETE' });
 }
+
+export async function uploadProposalFile(id, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`/api/proposals/${id}/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  return res.json();
+}
