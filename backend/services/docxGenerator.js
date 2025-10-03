@@ -30,12 +30,69 @@ async function generateProposalDocx(prop) {
   // Formatta numeri in valuta italiana (euro): punto per migliaia, virgola per decimali
   const formatCurrencyIt = (value) => {
     if (value === null || value === undefined) return '';
-    const num = Number(value);
-    if (!isFinite(num)) return '';
+
+    const toNumber = (val) => {
+      if (typeof val === 'number') {
+        return Number.isFinite(val) ? val : null;
+      }
+      if (typeof val !== 'string') return null;
+
+      const trimmed = val.trim();
+      if (!trimmed) return null;
+
+      // Rimuove caratteri non numerici (manteniamo separatori e segno)
+      const sanitized = trimmed.replace(/[^0-9.,-]/g, '');
+      if (!sanitized) return null;
+
+      const lastComma = sanitized.lastIndexOf(',');
+      const lastDot = sanitized.lastIndexOf('.');
+      const decimalIndex = Math.max(lastComma, lastDot);
+      const decimalSep = decimalIndex === -1
+        ? null
+        : (decimalIndex === lastComma ? ',' : '.');
+
+      let integerPart = sanitized;
+      let fractionPart = '';
+      if (decimalSep) {
+        fractionPart = sanitized.slice(decimalIndex + 1).replace(/[^0-9]/g, '');
+        integerPart = sanitized.slice(0, decimalIndex);
+      }
+
+      integerPart = integerPart.replace(/[^0-9-]/g, '');
+      let sign = '';
+      if (integerPart.startsWith('-')) {
+        sign = '-';
+        integerPart = integerPart.slice(1);
+      }
+
+      integerPart = integerPart.replace(/[^0-9]/g, '');
+      if (!integerPart) integerPart = '0';
+
+      const normalized = fractionPart
+        ? `${sign}${integerPart}.${fractionPart}`
+        : `${sign}${integerPart}`;
+
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const num = toNumber(value);
+    if (num === null) return '';
+
     try {
-      const s = num.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      if (/,/.test(s)) return s; // contiene separatore decimale italiano
+      const formatted = num.toLocaleString('it-IT', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+
+      if (
+        formatted &&
+        (Math.abs(num) < 1000 || /[.\s\u00A0\u202F]/.test(formatted))
+      ) {
+        return formatted;
+      }
     } catch (_) {}
+
     const fixed = num.toFixed(2);
     const [intPart, decPart] = fixed.split('.');
     const withThousands = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
