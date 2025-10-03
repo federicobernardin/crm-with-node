@@ -1,5 +1,6 @@
 // con fetch
 const BASE_URL = 'https://nodejs.ddev.site/api/clients';
+//const BASE_URL = 'https://127.0.0.1/api/clients';
 
 export async function getClients() {
   const res = await fetch(BASE_URL);

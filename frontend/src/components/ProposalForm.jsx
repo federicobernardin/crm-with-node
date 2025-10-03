@@ -1,7 +1,7 @@
 // frontend/src/components/ProposalForm.jsx
 import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
-import { Form, Input, Button, Card, Select, DatePicker, InputNumber, Checkbox, Upload, message } from 'antd';
+import { Form, Input, Button, Card, Select, DatePicker, InputNumber, Checkbox, Upload, message, Space } from 'antd';
 import { createProposal, updateProposal } from '../api/proposals';
 import { getClients } from '../api/clients';
 import { UploadOutlined } from '@ant-design/icons';
@@ -38,6 +38,7 @@ export default function ProposalForm({ editing, onSaved, onCancel }) {
         version:       editing.version,
         notes:         editing.notes,
         tranche:       editing.tranche,
+        billing_tranches: editing.billing_tranches || [],
         new_customer:  editing.new_customer,
         payment:       editing.payment,
         start_at:      editing.start_at      ? dayjs(editing.start_at)      : null,
@@ -56,6 +57,12 @@ export default function ProposalForm({ editing, onSaved, onCancel }) {
       stop_at:       vals.stop_at        ? vals.stop_at.format('YYYY-MM-DD')        : null,
       estimation_end:vals.estimation_end ? vals.estimation_end.format('YYYY-MM-DD') : null,
     };
+    // normalizza billing_tranches (numeri)
+    if (Array.isArray(payload.billing_tranches)) {
+      payload.billing_tranches = payload.billing_tranches
+        .filter(it => it && (it.text || it.value != null))
+        .map(it => ({ text: it.text || '', value: it.value != null ? Number(it.value) : null }));
+    }
     if (editing) await updateProposal(editing.id, payload);
     else await createProposal(payload);
     onSaved();
@@ -93,6 +100,39 @@ export default function ProposalForm({ editing, onSaved, onCancel }) {
         <Form.Item name="version" label="Versione"><Input /></Form.Item>
         <Form.Item name="notes" label="Note"><Input.TextArea rows={3}/></Form.Item>
         <Form.Item name="tranche" label="Tranche"><Input /></Form.Item>
+
+        <Card size="small" style={{ marginBottom: 16 }} title="Tranche di Fatturazione">
+          <Form.List name="billing_tranches">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...restField }) => (
+                  <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 8 }}>
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'text']}
+                      rules={[{ required: true, message: 'Inserisci descrizione' }]}
+                    >
+                      <Input placeholder="Descrizione tranche" style={{ width: 380 }} />
+                    </Form.Item>
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'value']}
+                      rules={[{ required: true, message: 'Inserisci importo' }]}
+                    >
+                      <InputNumber placeholder="Importo" style={{ width: 160 }} min={0} step={0.01} />
+                    </Form.Item>
+                    <Button danger onClick={() => remove(name)}>Rimuovi</Button>
+                  </Space>
+                ))}
+                <Form.Item>
+                  <Button type="dashed" onClick={() => add()} block>
+                    Aggiungi tranche
+                  </Button>
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
+        </Card>
         <Form.Item name="new_customer" valuePropName="checked"><Checkbox>Nuovo Cliente</Checkbox></Form.Item>
         <Form.Item name="payment" label="Payment"><Input /></Form.Item>
         <Form.Item name="start_at" label="Inizio"><DatePicker style={{width:'100%'}} /></Form.Item>

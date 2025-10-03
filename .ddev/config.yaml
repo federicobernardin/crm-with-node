@@ -262,6 +262,14 @@ host_db_port: "59002"
 #  command: "/var/www/html/node_modules/.bin/http-server /var/www/html/sub -p 3000"
 #  directory: /var/www/html
 
+web_extra_daemons:
+  - name: vite
+    command: bash -c 'npm install && npm run dev -- --host'
+    directory: /var/www/html/frontend
+  - name: api
+    command: bash -c 'npm run start'
+    directory: /var/www/html/backend
+
 # override_config: false
 # By default, config.*.yaml files are *merged* into the configuration
 # But this means that some things can't be overridden
@@ -272,6 +280,15 @@ host_db_port: "59002"
 # hooks:
 #   post-start: []
 # or
+
+# hooks:
+#   post-start:
+#     - exec: |
+#         cd backend && npm install && npm run start &
+#     - exec: |
+#         cd frontend && npm run dev &
+
+
 # web_environment: []
 # or
 # additional_hostnames: []

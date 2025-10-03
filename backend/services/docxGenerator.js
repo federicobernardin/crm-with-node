@@ -4,6 +4,7 @@ const path = require('path');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const currencyToWords = require ('../utils/currencyToWords');
+const docxTexts = require('../config/docxTexts');
 
 /**
  * Genera un buffer .docx a partire da un Proposal con dati Client e Contacts
@@ -26,6 +27,21 @@ async function generateProposalDocx(prop) {
   const zip = new PizZip(content);
   const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
 
+  // Formatta numeri in valuta italiana (euro): punto per migliaia, virgola per decimali
+  const formatCurrencyIt = (value) => {
+    if (value === null || value === undefined) return '';
+    const num = Number(value);
+    if (!isFinite(num)) return '';
+    try {
+      const s = num.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (/,/.test(s)) return s; // contiene separatore decimale italiano
+    } catch (_) {}
+    const fixed = num.toFixed(2);
+    const [intPart, decPart] = fixed.split('.');
+    const withThousands = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `${withThousands},${decPart}`;
+  };
+
   // Prepara dati sostituzione contatti
   const contactsData = prop.contacts.map((c, i) => ({
     [`contact${i+1}_first`]: c.first_name,
@@ -39,12 +55,45 @@ async function generateProposalDocx(prop) {
     .filter(name => name)
     .join(', ');
 
-  // Helper formato date (gestisce stringhe e Date)
+  // Helper formato date in base alla lingua (IT => gg/mm/aaaa)
   const formatDate = (d) => {
     if (!d) return '';
-    return (d instanceof Date && typeof d.toISOString === 'function')
-      ? d.toISOString().slice(0,10)
-      : String(d);
+
+    const toParts = (val) => {
+      if (val instanceof Date) {
+        return { y: val.getFullYear(), m: val.getMonth() + 1, d: val.getDate() };
+      }
+      if (typeof val === 'string') {
+        // Prova match YYYY-MM-DD (DATEONLY)
+        const m = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) return { y: +m[1], m: +m[2], d: +m[3] };
+        // Fallback: parse come Date
+        const dt = new Date(val);
+        if (!isNaN(dt)) {
+          return { y: dt.getFullYear(), m: dt.getMonth() + 1, d: dt.getDate() };
+        }
+        return null;
+      }
+      return null;
+    };
+
+    const parts = toParts(d);
+    if (parts) {
+      if (lang === 'it') {
+        const dd = String(parts.d).padStart(2, '0');
+        const mm = String(parts.m).padStart(2, '0');
+        const yyyy = String(parts.y);
+        return `${dd}/${mm}/${yyyy}`;
+      } else {
+        const yyyy = String(parts.y);
+        const mm = String(parts.m).padStart(2, '0');
+        const dd = String(parts.d).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      }
+    }
+
+    // Ultimo fallback: restituisci stringa originale
+    return String(d);
   };
 
   const data = {
@@ -62,16 +111,40 @@ async function generateProposalDocx(prop) {
     proposal_date:  formatDate(prop.date),
     author:         prop.author || '',
     title:          prop.title || '',
-    revenue:        prop.revenue != null ? prop.revenue.toFixed(2) : '',
-    revenueLetter:        prop.revenue != null ? currencyToWords(prop.revenue.toFixed(2)) : '',
+    revenue:        prop.revenue != null ? formatCurrencyIt(prop.revenue) : '',
+    amountLetter:        prop.revenue != null ? currencyToWords(prop.revenue.toFixed(2)) : '',
     version:        prop.version || '',
     notes:          prop.notes || 'prima versione',
     tranche:        prop.tranche || '',
+    // Tranche di fatturazione per tabella nel template DOCX
+    // Atteso array di { text, value }
+    billing_tranches: (() => {
+      const raw = prop.billing_tranches;
+      let arr = [];
+      if (Array.isArray(raw)) arr = raw;
+      else if (typeof raw === 'string' && raw.trim()) {
+        try { arr = JSON.parse(raw); } catch { arr = []; }
+      }
+      // normalizza e aggiunge formattazioni utili
+      return arr
+        .filter(it => it && (it.text || it.value != null))
+        .map(it => ({
+          text: (it.text || '').toString(),
+          //value: it.value != null ? Number(it.value) : null,
+          value_formatted: (it.value != null) ? formatCurrencyIt(it.value) : ''
+        }));
+    })(),
     new_customer:   prop.new_customer ? 'Sì' : 'No',
-    payment:        prop.payment || '',
+    payment_terms:        prop.payment || '',
     start_at:       formatDate(prop.start_at),
     stop_at:        formatDate(prop.stop_at),
     estimation_end: formatDate(prop.estimation_end),
+    // Testo condizionale per firma/condizioni, basato su cliente nuovo o esistente
+    conditionSigned: (() => {
+      const locale = docxTexts[lang] || docxTexts.it || {};
+      const block = (locale && locale.conditionSigned) || { new: '', existing: '' };
+      return prop.new_customer ? (block.new || '') : (block.existing || '');
+    })(),
     contacts:       contactsList,
     ...contactsData
   };

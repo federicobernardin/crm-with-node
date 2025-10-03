@@ -15,6 +15,20 @@ module.exports = (sequelize) => {
     version:       { type: DataTypes.STRING(20),  defaultValue: '1.0' },
     notes:         DataTypes.TEXT,
     tranche:       DataTypes.STRING(50),
+    // JSON serializzato: array di { text: string, value: number }
+    billing_tranches: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      get() {
+        const raw = this.getDataValue('billing_tranches');
+        if (!raw) return null;
+        try { return JSON.parse(raw); } catch { return null; }
+      },
+      set(val) {
+        if (val == null) this.setDataValue('billing_tranches', null);
+        else this.setDataValue('billing_tranches', JSON.stringify(val));
+      }
+    },
     new_customer:  { type: DataTypes.BOOLEAN,     defaultValue: false },
     payment:       DataTypes.STRING(100),
     start_at:      DataTypes.DATEONLY,
