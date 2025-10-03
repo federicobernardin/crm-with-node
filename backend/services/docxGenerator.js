@@ -30,12 +30,68 @@ async function generateProposalDocx(prop) {
   // Formatta numeri in valuta italiana (euro): punto per migliaia, virgola per decimali
   const formatCurrencyIt = (value) => {
     if (value === null || value === undefined) return '';
-    const num = Number(value);
-    if (!isFinite(num)) return '';
+
+    const toNumber = (val) => {
+      if (typeof val === 'number') {
+        return Number.isFinite(val) ? val : null;
+      }
+      if (typeof val !== 'string') return null;
+
+      const trimmed = val.trim();
+      if (!trimmed) return null;
+
+      const sanitized = trimmed.replace(/[^0-9.,-]/g, '');
+      if (!sanitized) return null;
+
+      const lastComma = sanitized.lastIndexOf(',');
+      const lastDot = sanitized.lastIndexOf('.');
+      const decimalIndex = Math.max(lastComma, lastDot);
+      const decimalSep = decimalIndex === -1
+        ? null
+        : (decimalIndex === lastComma ? ',' : '.');
+
+      let integerPart = sanitized;
+      let fractionPart = '';
+      if (decimalSep) {
+        fractionPart = sanitized.slice(decimalIndex + 1).replace(/[^0-9]/g, '');
+        integerPart = sanitized.slice(0, decimalIndex);
+      }
+
+      integerPart = integerPart.replace(/[^0-9-]/g, '');
+      let sign = '';
+      if (integerPart.startsWith('-')) {
+        sign = '-';
+        integerPart = integerPart.slice(1);
+      }
+
+      integerPart = integerPart.replace(/[^0-9]/g, '');
+      if (!integerPart) integerPart = '0';
+
+      const normalized = fractionPart
+        ? `${sign}${integerPart}.${fractionPart}`
+        : `${sign}${integerPart}`;
+
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const num = toNumber(value);
+    if (num === null) return '';
+
     try {
-      const s = num.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      if (/,/.test(s)) return s; // contiene separatore decimale italiano
+      const formatted = num.toLocaleString('it-IT', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+
+      if (
+        formatted &&
+        (Math.abs(num) < 1000 || /[.\s\u00A0\u202F]/.test(formatted))
+      ) {
+        return formatted;
+      }
     } catch (_) {}
+
     const fixed = num.toFixed(2);
     const [intPart, decPart] = fixed.split('.');
     const withThousands = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -95,7 +151,18 @@ async function generateProposalDocx(prop) {
     // Ultimo fallback: restituisci stringa originale
     return String(d);
   };
-print()
+
+  const paymentTerm = (() => {
+    const hasValue = (val) => val != null && String(val).trim() !== '';
+
+    if (hasValue(prop.payment_term)) return String(prop.payment_term).trim();
+    if (hasValue(prop.payment)) return String(prop.payment).trim();
+    if (prop.client && hasValue(prop.client.payment_term)) {
+      return String(prop.client.payment_term).trim();
+    }
+    return '';
+  })();
+
   const data = {
     company:        prop.client.company || '',
     address:        prop.client.address || '',
@@ -106,7 +173,7 @@ print()
     sdi:            prop.client.sdi || '',
     pec:            prop.client.pec || '',
     email:          prop.client.email || '',
-    payment_term:   prop.client.payment_term || '',
+    payment_term:   paymentTerm,
     proposal_code:  prop.code || '',
     proposal_date:  formatDate(prop.date),
     author:         prop.author || '',
@@ -135,7 +202,6 @@ print()
         }));
     })(),
     new_customer:   prop.new_customer ? 'Sì' : 'No',
-    payment_terms:        prop.payment || '',
     start_at:       formatDate(prop.start_at),
     stop_at:        formatDate(prop.stop_at),
     estimation_end: formatDate(prop.estimation_end),
